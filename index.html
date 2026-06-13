@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Terminal Bio</title>
+    <style>
+        /* --- Core Theme --- */
+        :root {
+            --bg-color: #030303;
+            --card-bg: rgba(12, 12, 12, 0.7);
+            --text-main: #f0f0f0;
+            --text-muted: #666666;
+            --accent: #10b981;
+            --glow: 0 0 20px rgba(16, 185, 129, 0.15);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; cursor: crosshair; }
+
+        body, html {
+            height: 100%; background-color: var(--bg-color); color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace; overflow: hidden;
+            display: flex; justify-content: center; align-items: center; perspective: 1000px; 
+        }
+
+        /* --- CRT Scanline Overlay --- */
+        .crt::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 999; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        /* --- Click to Enter Screen --- */
+        #enter-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000; display: flex; justify-content: center; align-items: center;
+            z-index: 10000; transition: opacity 0.8s ease-out;
+        }
+        #enter-text { font-size: 1.2rem; animation: pulse 2s infinite; letter-spacing: 3px; cursor: pointer; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; text-shadow: 0 0 10px white; } }
+
+        /* --- Background Particles --- */
+        #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+        /* --- Audio Controls --- */
+        #audio-controls {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px; border-radius: 50%; width: 45px; height: 45px;
+            display: flex; justify-content: center; align-items: center;
+            transition: all 0.3s; display: none; opacity: 0;
+        }
+        #audio-controls:hover { background: rgba(255,255,255,0.1); transform: scale(1.1); }
+        #audio-controls.visible { display: flex; opacity: 1; animation: fadeIn 1s forwards; }
+
+        /* --- Main Card --- */
+        .card-wrapper { position: relative; z-index: 10; width: 90%; max-width: 420px; transform-style: preserve-3d; }
+
+        .card {
+            background: var(--card-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 0 0 40px 0; text-align: center; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5); opacity: 0; transform: translateY(30px); 
+            transition: opacity 1s, transform 1s, box-shadow 0.3s; overflow: hidden;
+        }
+        .card.visible { opacity: 1; transform: translateY(0); box-shadow: var(--glow); }
+
+        /* Terminal Window Header */
+        .terminal-header {
+            background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 12px 20px; display: flex; gap: 8px; align-items: center; margin-bottom: 30px;
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background-color: #ff5f56; } .dot.yellow { background-color: #ffbd2e; } .dot.green { background-color: #27c93f; }
+        .header-title { flex: 1; text-align: center; font-size: 0.8rem; color: var(--text-muted); margin-left: -40px; }
+
+        /* --- Profile Elements --- */
+        .avatar-container { position: relative; width: 110px; height: 110px; margin: 0 auto 20px; }
+        .avatar {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.1); transition: all 0.4s ease; filter: grayscale(30%);
+        }
+        .avatar-container:hover .avatar { filter: grayscale(0%); border-color: var(--accent); box-shadow: 0 0 20px var(--accent); transform: scale(1.05); }
+
+        /* Glitch Name Effect */
+        .glitch-wrapper { position: relative; display: inline-block; margin-bottom: 5px; }
+        h1 { font-size: 1.8rem; letter-spacing: 2px; position: relative; color: white; }
+        h1::before, h1::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--card-bg); }
+        h1::before { left: 2px; text-shadow: -1px 0 red; animation: glitch-anim-1 2s infinite linear alternate-reverse; }
+        h1::after { left: -2px; text-shadow: -1px 0 blue; animation: glitch-anim-2 3s infinite linear alternate-reverse; }
+
+        @keyframes glitch-anim-1 { 0% { clip-path: inset(20% 0 80% 0); } 20% { clip-path: inset(60% 0 10% 0); } 40% { clip-path: inset(40% 0 50% 0); } 60% { clip-path: inset(80% 0 5% 0); } 80% { clip-path: inset(10% 0 70% 0); } 100% { clip-path: inset(30% 0 20% 0); } }
+        @keyframes glitch-anim-2 { 0% { clip-path: inset(10% 0 60% 0); } 20% { clip-path: inset(30% 0 20% 0); } 40% { clip-path: inset(70% 0 10% 0); } 60% { clip-path: inset(20% 0 50% 0); } 80% { clip-path: inset(50% 0 30% 0); } 100% { clip-path: inset(5% 0 80% 0); } }
+
+        .badges { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+        .badge { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: var(--text-muted); }
+
+        .bio { height: 40px; font-size: 0.95rem; color: var(--text-muted); margin-bottom: 30px; padding: 0 20px; }
+        .cursor { animation: blink 1s infinite; color: var(--accent); font-weight: bold; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* --- Links & Buttons --- */
+        .links { display: flex; flex-direction: column; gap: 14px; padding: 0 30px; }
+
+        .link-btn {
+            background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main); padding: 14px; border-radius: 8px; text-decoration: none;
+            font-size: 0.9rem; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 12px;
+            position: relative; overflow: hidden;
+        }
+        .link-btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent); transition: left 0.5s;
+        }
+        .link-btn:hover { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.2); transform: translateY(-2px); }
+        .link-btn:hover::before { left: 100%; }
+        .link-btn svg { width: 18px; height: 18px; }
+
+        /* --- Donation Section --- */
+        .donate-btn { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.3); color: var(--accent); margin-top: 10px; font-weight: bold; }
+        .donate-btn:hover { background: rgba(16, 185, 129, 0.15); border-color: var(--accent); box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+
+        .qr-container { max-height: 0; overflow: hidden; transition: max-height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); background: rgba(0,0,0,0.4); border-radius: 8px; margin-top: 5px; }
+        .qr-container.expanded { max-height: 350px; padding: 20px; border: 1px solid rgba(16, 185, 129, 0.2); margin-top: 10px; }
+        .qr-img { width: 160px; height: 160px; background: white; margin: 0 auto 15px; border-radius: 8px; display: block; object-fit: contain; padding: 5px;}
+        .upi-id { font-size: 0.9rem; color: #fff; user-select: all; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.3); margin-bottom: 5px;}
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="crt">
+
+    <audio id="bg-music" loop></audio>
+
+    <div id="enter-screen">
+        <div id="enter-text">[ INIT SEQUENCE ]</div>
+    </div>
+
+    <div id="audio-controls" onclick="toggleMute()">
+        <svg id="vol-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+    </div>
+
+    <canvas id="particles"></canvas>
+
+    <div class="card-wrapper" id="card-wrapper">
+        <div class="card" id="main-card">
+            
+            <div class="terminal-header">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+                <div class="header-title" id="dom-terminal-title">user@root:~</div>
+            </div>
+
+            <div class="avatar-container">
+                <img id="dom-avatar" src="" alt="Avatar" class="avatar">
+            </div>
+
+            <div class="glitch-wrapper">
+                <h1 id="dom-name" data-text="NAME">NAME</h1>
+            </div>
+            
+            <div class="badges">
+                <span class="badge" id="dom-username">@username</span>
+                <span class="badge" id="dom-role">ROLE</span>
+            </div>
+
+            <div class="bio">
+                <span id="typewriter"></span><span class="cursor">_</span>
+            </div>
+
+            <div class="links">
+                <a id="dom-github" href="#" target="_blank" class="link-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                    GitHub
+                </a>
+                
+                <a href="#" class="link-btn" onclick="copyDiscord(event)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6h0a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3v0a12 12 0 0 0-4 12v1h20v-1a12 12 0 0 0-4-12z"></path><circle cx="9" cy="12" r="1"></circle><circle cx="15" cy="12" r="1"></circle></svg>
+                    Discord
+                </a>
+                
+                <button class="link-btn donate-btn" onclick="toggleDonate()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Support via UPI
+                </button>
+                
+                <div class="qr-container" id="qr-section">
+                    <img id="dom-qr" src="" alt="UPI QR Code" class="qr-img">
+                    <div class="upi-id" id="dom-upi" onclick="copyUpi()">upi@id</div>
+                    <div style="font-size: 0.75rem; margin-top: 8px; color: var(--text-muted);">Tap ID to copy</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // ⚙️ CONFIGURATION: EDIT THIS SECTION ONLY! ⚙️
+        // ==========================================
+        const CONFIG = {
+            name: "John Doe",
+            username: "@johndoe",
+            roleBadge: "DEVELOPER",
+            
+            // Links & Contact
+            githubUrl: "https://github.com/",
+            discordTag: "johndoe#0000",
+            
+            // Media (Place files in same folder or use URLs)
+            avatarImage: "https://via.placeholder.com/150x150/111111/10b981?text=JD", 
+            backgroundMusic: "beat.mp3", // e.g., "beat.mp3"
+            
+            // Donation setup
+            upiId: "johndoe@bank",
+            upiQrImage: "https://via.placeholder.com/200x200/ffffff/000000?text=QR+Code",
+            
+            // Typewriter Bio Lines
+            bioLines: [
+                "Initializing secure connection...",
+                "Building tools for the web.",
+                "Living in the terminal.",
+                "Ctrl + C to exit."
+            ]
+        };
+        // ==========================================
+        // END CONFIGURATION
+        // ==========================================
+
+
+        // --- Initialize DOM with Config ---
+        document.title = `${CONFIG.username} | Terminal`;
+        document.getElementById('dom-name').textContent = CONFIG.name;
+        document.getElementById('dom-name').setAttribute('data-text', CONFIG.name);
+        document.getElementById('dom-username').textContent = CONFIG.username;
+        document.getElementById('dom-role').textContent = CONFIG.roleBadge;
+        document.getElementById('dom-terminal-title').textContent = `${CONFIG.username.replace('@','')}@root:~`;
+        
+        document.getElementById('dom-avatar').src = CONFIG.avatarImage;
+        document.getElementById('dom-github').href = CONFIG.githubUrl;
+        
+        document.getElementById('dom-qr').src = CONFIG.upiQrImage;
+        document.getElementById('dom-upi').textContent = CONFIG.upiId;
+
+        const music = document.getElementById('bg-music');
+        if (CONFIG.backgroundMusic) {
+            music.innerHTML = `<source src="${CONFIG.backgroundMusic}" type="audio/mpeg">`;
+        }
+
+        // --- 1. Enter Screen & Audio ---
+        const enterScreen = document.getElementById('enter-screen');
+        const mainCard = document.getElementById('main-card');
+        const audioControls = document.getElementById('audio-controls');
+        let isMuted = false;
+
+        enterScreen.addEventListener('click', () => {
+            enterScreen.style.opacity = '0';
+            setTimeout(() => {
+                enterScreen.style.display = 'none';
+                mainCard.classList.add('visible');
+                audioControls.classList.add('visible');
+                
+                if (CONFIG.backgroundMusic) {
+                    music.volume = 0.4;
+                    const playPromise = music.play();
+                    if (playPromise !== undefined) playPromise.catch(e => console.log("Audio play blocked."));
+                }
+                
+                setTimeout(typeWriter, 800);
+            }, 800);
+        });
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            music.muted = isMuted;
+            const icon = document.getElementById('vol-icon');
+            if(isMuted) {
+                icon.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>';
+            } else {
+                icon.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>';
+            }
+        }
+
+        // --- 2. 3D Card Tilt Effect ---
+        const wrapper = document.getElementById('card-wrapper');
+        document.addEventListener('mousemove', (e) => {
+            if(!mainCard.classList.contains('visible')) return;
+            const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
+            const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
+            wrapper.style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+        });
+        document.addEventListener('mouseleave', () => {
+            wrapper.style.transform = `rotateY(0deg) rotateX(0deg)`;
+            wrapper.style.transition = 'transform 0.5s ease';
+        });
+        document.addEventListener('mouseenter', () => { wrapper.style.transition = 'none'; });
+
+        // --- 3. Typewriter Effect ---
+        let textIndex = 0; let charIndex = 0; let isDeleting = false;
+        const typewriterEl = document.getElementById('typewriter');
+
+        function typeWriter() {
+            const currentText = CONFIG.bioLines[textIndex];
+            
+            if (isDeleting) {
+                typewriterEl.textContent = currentText.substring(0, charIndex - 1);
+                charIndex--;
+            } else {
+                typewriterEl.textContent = currentText.substring(0, charIndex + 1);
+                charIndex++;
+            }
+
+            let typeSpeed = isDeleting ? 30 : 70;
+
+            if (!isDeleting && charIndex === currentText.length) {
+                typeSpeed = 2500; isDeleting = true;
+            } else if (isDeleting && charIndex === 0) {
+                isDeleting = false; textIndex = (textIndex + 1) % CONFIG.bioLines.length; typeSpeed = 500;
+            }
+
+            setTimeout(typeWriter, typeSpeed);
+        }
+
+        // --- 4. Interactions ---
+        function toggleDonate() {
+            document.getElementById('qr-section').classList.toggle('expanded');
+        }
+
+        function copyDiscord(e) {
+            e.preventDefault();
+            navigator.clipboard.writeText(CONFIG.discordTag);
+            alert(`Discord tag [${CONFIG.discordTag}] copied!`);
+        }
+
+        function copyUpi() {
+            navigator.clipboard.writeText(CONFIG.upiId);
+            alert('UPI ID copied to clipboard!');
+        }
+
+        // --- 5. Particle Background ---
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particlesArray = [];
+
+        function initCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width; this.y = Math.random() * height;
+                this.size = Math.random() * 2; this.speedY = Math.random() * 0.8 + 0.2;
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
+            update() {
+                this.y -= this.speedY; 
+                if (this.y < 0) { this.y = height; this.x = Math.random() * width; }
+            }
+            draw() {
+                ctx.fillStyle = `rgba(16, 185, 129, ${this.opacity})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        function handleParticles() {
+            ctx.clearRect(0, 0, width, height);
+            for (let i = 0; i < 80; i++) { particlesArray[i].update(); particlesArray[i].draw(); }
+            requestAnimationFrame(handleParticles);
+        }
+
+        initCanvas();
+        for (let i = 0; i < 80; i++) particlesArray.push(new Particle());
+        handleParticles();
+        window.addEventListener('resize', initCanvas);
+    </script>
+</body>
+</html>
